@@ -1,0 +1,16 @@
+defaultEntryPoints = ["http"]
+[entryPoints]
+  [entryPoints.http]
+  address = ":9323"
+
+[file]
+
+[backends]
+  [backends.backend1]
+    [backends.backend1.servers.server1]
+       url = "http://172.18.0.1:9323"  # docker_gwbridge IP
+
+[frontends]
+  [frontends.frontend1]
+      backend = "backend1"
+      passHostHeader = true

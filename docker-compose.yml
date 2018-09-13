@@ -1,0 +1,222 @@
+version: "3.3"
+
+networks:
+  metrics_network:
+    driver: overlay
+    attachable: true
+  http_network:
+    external: true
+
+volumes:
+    prometheus: {}
+    grafana: {}
+    alertmanager: {}
+
+configs:
+  dockerd_config_traefik:
+    file: ./dockerd-metrics/traefik.toml
+  grafana_node_dash:
+    file: ./grafana/dashboards/swarmprom-nodes-dash.json
+  grafana_prometheus_dash:
+    file: ./grafana/dashboards/swarmprom-prometheus-dash.json
+  grafana_services_dash:
+    file: ./grafana/dashboards/swarmprom-services-dash.json
+  grafana_datasources:
+    file: ./grafana/datasources/prometheus.yaml
+  grafana_dashboards:
+    file: ./grafana/swarmprom_dashboards.yml
+  node_rules:
+    file: ./prometheus/rules/swarm_node.rules.yml
+  task_rules:
+    file: ./prometheus/rules/swarm_task.rules.yml
+
+services:
+  dockerd-exporter:
+    image: traefik
+    networks:
+      - metrics_network
+    configs:
+      - source: dockerd_config_traefik
+        target: /traefik.toml
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  cadvisor:
+    image: google/cadvisor
+    networks:
+      - metrics_network
+    command: -logtostderr -docker_only
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/rootfs:ro
+      - /var/run:/var/run
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  grafana:
+    image: grafana/grafana:5.0.1
+    networks:
+      - metrics_network
+      - http_network
+    configs:
+      - source: grafana_node_dash
+        target: /etc/grafana/dashboards/swarmprom-nodes-dash.json
+      - source: grafana_prometheus_dash
+        target: /etc/grafana/dashboards/swarmprom-prometheus-dash.json
+      - source: grafana_services_dash
+        target: /etc/grafana/dashboards/swarmprom-services-dash.json
+      - source: grafana_datasources
+        target: /etc/grafana/provisioning/datasources/prometheus.yaml
+      - source: grafana_dashboards
+        target: /etc/grafana/provisioning/dashboards/swarmprom_dashboards.yml
+    environment:
+      - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      #- GF_SERVER_ROOT_URL=${GF_SERVER_ROOT_URL:-localhost}
+      #- GF_SMTP_ENABLED=${GF_SMTP_ENABLED:-false}
+      #- GF_SMTP_FROM_ADDRESS=${GF_SMTP_FROM_ADDRESS:-grafana@test.com}
+      #- GF_SMTP_FROM_NAME=${GF_SMTP_FROM_NAME:-Grafana}
+      #- GF_SMTP_HOST=${GF_SMTP_HOST:-smtp:25}
+      #- GF_SMTP_USER=${GF_SMTP_USER}
+      #- GF_SMTP_PASSWORD=${GF_SMTP_PASSWORD}
+    volumes:
+      - grafana:/var/lib/grafana
+    labels:
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:grafana.chailloux.me
+      - traefik.port=3000
+      - traefik.docker.network=http_network
+        # - traefik.frontend.auth.basic=admin:{SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  alertmanager:
+    image: prom/alertmanager:v0.14.0
+    networks:
+      - metrics_network
+      - http_network
+    command:
+      - '--storage.path=/alertmanager'
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+    volumes:
+      - alertmanager:/alertmanager
+    labels:
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:alertmanager.chailloux.me
+      - traefik.port=9093
+      - traefik.docker.network=http_network
+      - traefik.frontend.auth.basic=admin:{SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  unsee:
+    image: cloudflare/unsee:v0.8.0
+    networks:
+      - metrics_network
+      - http_network
+    environment:
+      - "ALERTMANAGER_URIS=default:http://alertmanager:9093"
+    labels:
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:unsee.chailloux.me
+      - traefik.port=9094
+      - traefik.docker.network=http_network
+      - traefik.frontend.auth.basic=admin:{SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
+    deploy:
+      mode: replicated
+      replicas: 1
+
+  node-exporter:
+    image: stefanprodan/swarmprom-node-exporter:v0.15.2
+    networks:
+      - metrics_network
+    environment:
+      - NODE_ID={{.Node.ID}}
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /etc/hostname:/etc/nodename
+    command:
+      - '--path.sysfs=/host/sys'
+      - '--path.procfs=/host/proc'
+      - '--collector.textfile.directory=/etc/node-exporter/'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+      # no collectors are explicitely enabled here, because the defaults are just fine,
+      # see https://github.com/prometheus/node_exporter
+      # disable ipvs collector because it barfs the node-exporter logs full with errors on my centos 7 vm's
+      - '--no-collector.ipvs'
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  prometheus:
+    image: stefanprodan/swarmprom-prometheus:v2.2.0-rc.0
+    networks:
+      - metrics_network
+      - http_network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention=24h'
+    volumes:
+      - prometheus:/prometheus
+    configs:
+      - source: node_rules
+        target: /etc/prometheus/swarm_node.rules.yml
+      - source: task_rules
+        target: /etc/prometheus/swarm_task.rules.yml
+    labels:
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:prometheus.chailloux.me
+      - traefik.port=9090
+      - traefik.docker.network=http_network
+      - traefik.frontend.auth.basic=admin:{SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 2048M
+        reservations:
+          memory: 128M

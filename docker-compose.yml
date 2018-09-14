@@ -29,6 +29,8 @@ configs:
     file: ./prometheus/rules/swarm_node.rules.yml
   task_rules:
     file: ./prometheus/rules/swarm_task.rules.yml
+  prometheus_conf:
+    file: ./prometheus/conf/prometheus.yml
 
 services:
   dockerd-exporter:
@@ -158,7 +160,7 @@ services:
       replicas: 1
 
   node-exporter:
-    image: stefanprodan/swarmprom-node-exporter:v0.15.2
+    image: registry.orus.io/node-exporter:v0.15.2
     networks:
       - metrics_network
     environment:
@@ -186,7 +188,7 @@ services:
           memory: 64M
 
   prometheus:
-    image: stefanprodan/swarmprom-prometheus:v2.2.0-rc.0
+    image: prom/prometheus:v2.2.0-rc.0
     networks:
       - metrics_network
       - http_network
@@ -195,7 +197,8 @@ services:
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention=24h'
+      # keep default which is 15d (15 days)
+      # - '--storage.tsdb.retention=24h'
     volumes:
       - prometheus:/prometheus
     configs:
@@ -203,6 +206,8 @@ services:
         target: /etc/prometheus/swarm_node.rules.yml
       - source: task_rules
         target: /etc/prometheus/swarm_task.rules.yml
+      - source: prometheus_conf
+        target: /etc/prometheus/prometheus.yml
     labels:
       - traefik.enable=true
       - traefik.frontend.rule=Host:prometheus.chailloux.me

@@ -31,6 +31,8 @@ configs:
     file: ./prometheus/rules/swarm_task.rules.yml
   prometheus_conf:
     file: ./prometheus/conf/prometheus.yml
+  alertmanager_conf:
+    file: ./alertmanager/alertmanager.yml
 
 services:
   dockerd-exporter:
@@ -124,6 +126,9 @@ services:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
     volumes:
       - alertmanager:/alertmanager
+    configs:
+      - source: alertmanager_conf
+        target: /etc/alertmanager/alertmanager.yml
     labels:
       - traefik.enable=true
       - traefik.frontend.rule=Host:alertmanager.chailloux.me

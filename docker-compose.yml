@@ -152,6 +152,10 @@ services:
     networks:
       - metrics_network
       - http_network
+    command:
+      - '/unsee'
+      - '--port'
+      - '9094'
     environment:
       - "ALERTMANAGER_URIS=default:http://alertmanager:9093"
     labels:

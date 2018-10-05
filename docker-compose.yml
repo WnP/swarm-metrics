@@ -55,7 +55,7 @@ services:
     networks:
       - metrics_network
       - http_network
-    command: -logtostderr -docker_only --port 9095
+    command: --logtostderr=true --docker_only=true --port 9095
     labels:
       - traefik.enable=true
       - traefik.frontend.rule=Host:cadvisor.chailloux.me

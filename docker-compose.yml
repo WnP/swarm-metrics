@@ -54,6 +54,7 @@ services:
     image: google/cadvisor
     networks:
       - metrics_network
+      - http_network
     command: -logtostderr -docker_only --port 9095
     labels:
       - traefik.enable=true

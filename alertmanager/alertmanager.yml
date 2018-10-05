@@ -3,5 +3,5 @@ route:
 
 receivers:
     - name: 'webhook'
-      webhook_config:
+      webhook_configs:
           - url: http://nowhere.chailloux.me/nothing

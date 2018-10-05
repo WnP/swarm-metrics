@@ -1,7 +1,7 @@
 route:
-    receiver: 'email'
+    receiver: 'webhook'
 
 receivers:
-    - name: 'email'
-      email_configs:
-          - to: steeve.chailloux@xcg-consulting.fr
+    - name: 'webhook'
+      webhook_config:
+          - url: http://nowhere.chailloux.me/nothing

@@ -54,7 +54,13 @@ services:
     image: google/cadvisor
     networks:
       - metrics_network
-    command: -logtostderr -docker_only
+    command: -logtostderr -docker_only --port 9095
+    labels:
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:cadvisor.chailloux.me
+      - traefik.port=9095
+      - traefik.docker.network=http_network
+      - traefik.frontend.auth.basic=admin:{SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /:/rootfs:ro

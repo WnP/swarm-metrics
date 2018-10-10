@@ -55,13 +55,7 @@ services:
     networks:
       - metrics_network
       - http_network
-    command: --docker_only=true --port 9095 --profiling=true
-    labels:
-      - traefik.enable=true
-      - traefik.frontend.rule=Host:cadvisor.chailloux.me
-      - traefik.port=9095
-      - traefik.docker.network=http_network
-      # - traefik.frontend.auth.basic=admin:{SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
+    command: --docker_only=true --port 9095
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /:/rootfs:ro
@@ -105,12 +99,6 @@ services:
       #- GF_SMTP_PASSWORD=${GF_SMTP_PASSWORD}
     volumes:
       - grafana:/var/lib/grafana
-    labels:
-      - traefik.enable=true
-      - traefik.frontend.rule=Host:grafana.chailloux.me
-      - traefik.port=3000
-      - traefik.docker.network=http_network
-        # - traefik.frontend.auth.basic=admin:{SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
     deploy:
       mode: replicated
       replicas: 1
@@ -122,6 +110,11 @@ services:
           memory: 128M
         reservations:
           memory: 64M
+      labels:
+        - traefik.enable=true
+        - traefik.frontend.rule=Host:metrics.chailloux.me
+        - traefik.port=3000
+        - traefik.docker.network=http_network
 
   alertmanager:
     image: prom/alertmanager:v0.14.0
@@ -136,12 +129,6 @@ services:
     configs:
       - source: alertmanager_conf
         target: /etc/alertmanager/alertmanager.yml
-    labels:
-      - traefik.enable=true
-      - traefik.frontend.rule=Host:alertmanager.chailloux.me
-      - traefik.port=9093
-      - traefik.docker.network=http_network
-      - traefik.frontend.auth.basic=admin:{SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
     deploy:
       mode: replicated
       replicas: 1
@@ -165,15 +152,15 @@ services:
       - '9094'
     environment:
       - "ALERTMANAGER_URIS=default:http://alertmanager:9093"
-    labels:
-      - traefik.enable=true
-      - traefik.frontend.rule=Host:unsee.chailloux.me
-      - traefik.port=9094
-      - traefik.docker.network=http_network
-      - traefik.frontend.auth.basic=admin:{SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
     deploy:
       mode: replicated
       replicas: 1
+      labels:
+        - traefik.enable=true
+        - traefik.frontend.rule=Host:dashboard.chailloux.me
+        - traefik.port=9094
+        - traefik.docker.network=http_network
+        - traefik.frontend.auth.basic=admin:{SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
 
   node-exporter:
     image: registry.orus.io/node-exporter:v0.15.2
@@ -224,12 +211,6 @@ services:
         target: /etc/prometheus/swarm_task.rules.yml
       - source: prometheus_conf
         target: /etc/prometheus/prometheus.yml
-    labels:
-      - traefik.enable=true
-      - traefik.frontend.rule=Host:prometheus.chailloux.me
-      - traefik.port=9090
-      - traefik.docker.network=http_network
-      - traefik.frontend.auth.basic=admin:{SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
     deploy:
       mode: replicated
       replicas: 1

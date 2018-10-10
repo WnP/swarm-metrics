@@ -160,7 +160,7 @@ services:
         - traefik.frontend.rule=Host:dashboard.chailloux.me
         - traefik.port=9094
         - traefik.docker.network=http_network
-        - traefik.frontend.auth.basic=admin:{SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
+        - traefik.frontend.auth.basic=admin:$$2y$$13$$CNY0h21kvLFnc5h3/ZBY7.TTFnzsWrjgu33zOa3ozS1ubrt4Ekn5G
 
   node-exporter:
     image: registry.orus.io/node-exporter:v0.15.2
@@ -222,3 +222,9 @@ services:
           memory: 2048M
         reservations:
           memory: 128M
+      labels:
+        - traefik.enable=true
+        - traefik.frontend.rule=Host:prom.chailloux.me
+        - traefik.port=9090
+        - traefik.docker.network=http_network
+        - traefik.frontend.auth.basic=admin:$$2y$$13$$CNY0h21kvLFnc5h3/ZBY7.TTFnzsWrjgu33zOa3ozS1ubrt4Ekn5G
